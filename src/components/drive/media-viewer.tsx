@@ -61,24 +61,19 @@ export function MediaViewer({ file, isOpen, onClose, onDownload, onShare, onDele
         {/* Media Preview Screen */}
         <div className="relative w-full min-h-[350px] max-h-[550px] bg-neo-ink border-3 border-neo-ink flex items-center justify-center overflow-hidden">
           {isVideo ? (
-            <div className="w-full h-full min-h-[400px]">
-              {driveEmbedUrl ? (
-                <iframe
-                  src={driveEmbedUrl}
-                  title={file.original_name}
-                  className="w-full h-[450px] border-none"
-                  allow="autoplay"
-                />
-              ) : (
-                <div className="text-neo-bg font-bold p-6 text-center">
-                  Pemutar video sedang memuat stream Google Drive...
-                </div>
-              )}
+            <div className="w-full h-full min-h-[400px] flex items-center justify-center p-2">
+              <video
+                src={`/api/v1/files/${file.id}/preview`}
+                controls
+                autoPlay
+                playsInline
+                className="max-h-[480px] max-w-full"
+              />
             </div>
           ) : (
             <div className="relative w-full h-full min-h-[380px] flex items-center justify-center p-2 overflow-auto">
               <img
-                src={driveDirectUrl || `https://drive.google.com/thumbnail?id=${file.provider_file_id}&sz=w1200`}
+                src={`/api/v1/files/${file.id}/preview`}
                 alt={file.original_name}
                 style={{ transform: `scale(${zoom})`, transition: 'transform 0.15s ease' }}
                 className="max-h-[480px] max-w-full object-contain select-none"

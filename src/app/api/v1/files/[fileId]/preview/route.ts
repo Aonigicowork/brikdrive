@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
-export async function POST(req: NextRequest, { params }: { params: { fileId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { fileId: string } }) {
   const requestId = getRequestId(req);
   const user = await getAuthenticatedUser(req);
 
@@ -17,9 +17,9 @@ export async function POST(req: NextRequest, { params }: { params: { fileId: str
   }
 
   const { fileId } = params;
-  const supabase = createServerSupabaseClient();
+  const admin = createAdminClient();
 
-  const { data: file, error } = await supabase
+  const { data: file, error } = await admin
     .from('files')
     .select('*')
     .eq('id', fileId)
@@ -33,20 +33,45 @@ export async function POST(req: NextRequest, { params }: { params: { fileId: str
   }
 
   try {
-    const previewUrl = `https://www.googleapis.com/drive/v3/files/${file.provider_file_id}?alt=media`;
-    const googleDirectUrl = `https://drive.google.com/file/d/${file.provider_file_id}/preview`;
+    const driveMediaUrl = `https://www.googleapis.com/drive/v3/files/${file.provider_file_id}?alt=media`;
+    const driveHeaders: Record<string, string> = {
+      Authorization: `Bearer ${driveCtx.accessToken}`,
+    };
 
-    return NextResponse.json({
-      previewUrl,
-      googleDirectUrl,
-      fileName: file.original_name,
-      mimeType: file.mime_type,
-      accessToken: driveCtx.accessToken,
-      requestId,
+    const range = req.headers.get('range');
+    if (range) {
+      driveHeaders['Range'] = range;
+    }
+
+    const driveRes = await fetch(driveMediaUrl, {
+      headers: driveHeaders,
+    });
+
+    if (!driveRes.ok) {
+      const errText = await driveRes.text();
+      logger.error('Failed to stream media from Google Drive', { status: driveRes.status, errText, requestId });
+      return createErrorResponse('INTERNAL_ERROR', 'Gagal memuat media dari Google Drive.', requestId);
+    }
+
+    const responseHeaders = new Headers();
+    responseHeaders.set('Content-Type', file.mime_type);
+    responseHeaders.set('Cache-Control', 'private, max-age=3600');
+    if (driveRes.headers.get('Content-Length')) {
+      responseHeaders.set('Content-Length', driveRes.headers.get('Content-Length')!);
+    }
+    if (driveRes.headers.get('Content-Range')) {
+      responseHeaders.set('Content-Range', driveRes.headers.get('Content-Range')!);
+    }
+    if (driveRes.headers.get('Accept-Ranges')) {
+      responseHeaders.set('Accept-Ranges', driveRes.headers.get('Accept-Ranges')!);
+    }
+
+    return new NextResponse(driveRes.body, {
+      status: driveRes.status,
+      headers: responseHeaders,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Gagal menghasilkan URL pratinjau';
-    logger.error('Preview error', { message, requestId, userId: user.id });
+    const message = err instanceof Error ? err.message : 'Gagal memuat media pratinjau';
     return createErrorResponse('INTERNAL_ERROR', message, requestId);
   }
 }

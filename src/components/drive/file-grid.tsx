@@ -50,15 +50,14 @@ export function FileGrid({ files, onPreview, onDownload, onShare, onDelete }: Fi
               onClick={() => onPreview(file)}
               className="relative aspect-video w-full bg-neo-bg border-2 border-neo-ink flex items-center justify-center cursor-pointer overflow-hidden group-hover:bg-neo-yellow/20 transition-colors"
             >
-              {file.provider_file_id ? (
-                // Google Drive thumbnail image preview
+              {!isVideo && file.provider_file_id ? (
+                // Direct streaming image thumbnail
                 <img
-                  src={`https://drive.google.com/thumbnail?id=${file.provider_file_id}&sz=w600`}
+                  src={`/api/v1/files/${file.id}/preview`}
                   alt={file.original_name}
                   loading="lazy"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover select-none"
                   onError={(e) => {
-                    // Fallback to icon on thumbnail error
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
