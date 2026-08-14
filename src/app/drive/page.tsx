@@ -290,25 +290,22 @@ export default function DriveDashboardPage() {
   // File Actions
   const handleDownload = async (file: BrikFile) => {
     try {
-      const res = await authFetch(`/api/v1/files/${file.id}/download`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: { message: 'Gagal mengunduh file.' } }));
-        alert(err.error?.message || 'Gagal mengunduh file.');
-        return;
-      }
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const tokenParam = session?.access_token ? `?token=${encodeURIComponent(session.access_token)}` : '';
+      const downloadUrl = `/api/v1/files/${file.id}/download${tokenParam}`;
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
-      a.href = url;
-      a.download = file.original_name;
+      a.href = downloadUrl;
+      a.setAttribute('download', file.original_name);
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch {
-      alert('Gagal memproses unduhan.');
+      setTimeout(() => {
+        document.body.removeChild(a);
+      }, 1000);
+    } catch (err) {
+      alert('Gagal memproses unduhan: ' + (err instanceof Error ? err.message : String(err)));
     }
   };
 

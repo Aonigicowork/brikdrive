@@ -28,11 +28,22 @@ export async function getAuthenticatedUser(req?: Request): Promise<{ id: string;
     };
   }
 
-  // Fallback: Check Authorization header
+  // Fallback: Check Authorization header or query parameter
   if (req) {
+    let token: string | null = null;
     const authHeader = req.headers.get('authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.replace('Bearer ', '').trim();
+      token = authHeader.replace('Bearer ', '').trim();
+    } else {
+      try {
+        const url = new URL(req.url);
+        token = url.searchParams.get('token') || url.searchParams.get('auth_token');
+      } catch {
+        // ignore
+      }
+    }
+
+    if (token) {
       const admin = createAdminClient();
       const {
         data: { user: tokenUser },
