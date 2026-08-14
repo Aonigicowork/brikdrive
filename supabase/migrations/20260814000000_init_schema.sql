@@ -199,6 +199,9 @@ CREATE POLICY "Users can update own files" ON public.files
 CREATE POLICY "Users can view own upload sessions" ON public.upload_sessions
     FOR SELECT TO authenticated USING ((select auth.uid()) = owner_id);
 
+CREATE POLICY "Users can insert own upload sessions" ON public.upload_sessions
+    FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) = owner_id);
+
 CREATE POLICY "Users can update own upload sessions" ON public.upload_sessions
     FOR UPDATE TO authenticated
     USING ((select auth.uid()) = owner_id)

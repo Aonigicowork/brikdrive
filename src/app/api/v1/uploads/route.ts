@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createServerSupabaseClient, createAdminClient } from '@/lib/db/supabase-server';
 import { initiateUploadSchema, sanitizeFilename } from '@/lib/validation/schemas';
 import { googleDriveAdapter } from '@/lib/google-drive/client';
 import { encryptString } from '@/lib/crypto/encryption';
@@ -30,20 +30,20 @@ export async function POST(req: NextRequest) {
 
     const { originalName, mimeType, byteSize, folderId } = parsed.data;
     const normalizedName = sanitizeFilename(originalName);
-    const supabase = createServerSupabaseClient();
+    const admin = createAdminClient();
 
     // 1. Validate quota
-    const { data: profile } = await supabase.from('profiles').select('app_quota_bytes').eq('id', user.id).maybeSingle();
+    const { data: profile } = await admin.from('profiles').select('app_quota_bytes').eq('id', user.id).maybeSingle();
     const quotaBytes = profile?.app_quota_bytes || 107374182400; // 100 GiB
 
-    const { data: activeFiles } = await supabase
+    const { data: activeFiles } = await admin
       .from('files')
       .select('byte_size')
       .eq('owner_id', user.id)
       .eq('upload_status', 'completed')
       .is('deleted_at', null);
 
-    const currentUsed = (activeFiles || []).reduce((sum, f) => sum + Number(f.byte_size || 0), 0);
+    const currentUsed = (activeFiles || []).reduce((sum: number, f: { byte_size: number | null }) => sum + Number(f.byte_size || 0), 0);
     if (currentUsed + byteSize > quotaBytes) {
       return createErrorResponse('QUOTA_EXCEEDED', 'Kapasitas penyimpanan BrikDrive tidak mencukupi.', requestId);
     }
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     // 2. Resolve Google Drive parent folder ID
     let parentProviderId = driveCtx.connection.root_folder_id;
     if (folderId) {
-      const { data: targetFolder, error: folderErr } = await supabase
+      const { data: targetFolder, error: folderErr } = await admin
         .from('folders')
         .select('provider_folder_id')
         .eq('id', folderId)
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Create file row with status 'initiated'
-    const { data: newFile, error: fileInsertError } = await supabase
+    const { data: newFile, error: fileInsertError } = await admin
       .from('files')
       .insert({
         owner_id: user.id,
@@ -82,8 +82,9 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (fileInsertError || !newFile) {
-      logger.error('Failed to create file record', { error: fileInsertError?.message, requestId, userId: user.id });
-      return createErrorResponse('INTERNAL_ERROR', 'Gagal membuat rekaman file.', requestId);
+      const errMsg = fileInsertError?.message || 'Gagal membuat rekaman file di database.';
+      logger.error('Failed to create file record', { error: errMsg, requestId, userId: user.id });
+      return createErrorResponse('INTERNAL_ERROR', errMsg, requestId);
     }
 
     // 4. Initiate Resumable Session with Google Drive API
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const encryptedSessionUri = encryptString(sessionUri);
 
-    const { data: session, error: sessionInsertError } = await supabase
+    const { data: session, error: sessionInsertError } = await admin
       .from('upload_sessions')
       .insert({
         file_id: newFile.id,
@@ -113,8 +114,9 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (sessionInsertError || !session) {
-      logger.error('Failed to store upload session', { error: sessionInsertError?.message, requestId });
-      return createErrorResponse('INTERNAL_ERROR', 'Gagal menginisiasi sesi upload.', requestId);
+      const errMsg = sessionInsertError?.message || 'Gagal menyimpan sesi upload.';
+      logger.error('Failed to store upload session', { error: errMsg, requestId });
+      return createErrorResponse('INTERNAL_ERROR', errMsg, requestId);
     }
 
     logger.info('Resumable upload session initiated', { fileId: newFile.id, uploadId: session.id, byteSize, requestId });
