@@ -87,13 +87,15 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('INTERNAL_ERROR', errMsg, requestId);
     }
 
-    // 4. Initiate Resumable Session with Google Drive API
+    // 4. Initiate Resumable Session with Google Drive API (with CORS Origin)
+    const clientOrigin = req.headers.get('origin') || req.nextUrl.origin || 'http://localhost:3000';
     const sessionUri = await googleDriveAdapter.initiateResumableUpload(driveCtx.accessToken, {
       name: normalizedName,
       mimeType,
       parentFolderId: parentProviderId,
       brikdriveFileId: newFile.id,
       byteSize,
+      origin: clientOrigin,
     });
 
     // 5. Store session encrypted (expires in 7 days)

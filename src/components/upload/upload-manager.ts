@@ -199,7 +199,24 @@ class UploadManager {
       const endByte = Math.min(startByte + chunkSize, totalSize);
       const chunkBlob = file.slice(startByte, endByte);
 
-      const response = await this.sendChunk(item, chunkBlob, startByte, endByte - 1, totalSize);
+      let response: { status: number; range: string | null; body?: any } | null = null;
+      let attempts = 0;
+      while (attempts < 3) {
+        try {
+          response = await this.sendChunk(item, chunkBlob, startByte, endByte - 1, totalSize);
+          break;
+        } catch (chunkErr) {
+          attempts++;
+          if (attempts >= 3) {
+            throw chunkErr;
+          }
+          await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempts)));
+        }
+      }
+
+      if (!response) {
+        throw new Error('Gagal mengirim data chunk setelah 3 percobaan.');
+      }
 
       if (response.status === 308) {
         // Resume incomplete - parse Range header from Google Drive

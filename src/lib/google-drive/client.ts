@@ -249,6 +249,7 @@ export class GoogleDriveAdapter {
       parentFolderId: string;
       brikdriveFileId: string;
       byteSize: number;
+      origin?: string;
     }
   ): Promise<string> {
     const metadata = {
@@ -260,14 +261,20 @@ export class GoogleDriveAdapter {
       },
     };
 
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Upload-Content-Type': params.mimeType,
+      'X-Upload-Content-Length': params.byteSize.toString(),
+    };
+
+    if (params.origin) {
+      headers['Origin'] = params.origin;
+    }
+
     const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json; charset=UTF-8',
-        'X-Upload-Content-Type': params.mimeType,
-        'X-Upload-Content-Length': params.byteSize.toString(),
-      },
+      headers,
       body: JSON.stringify(metadata),
     });
 
