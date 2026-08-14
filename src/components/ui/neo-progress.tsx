@@ -7,6 +7,7 @@ export interface NeoProgressBarProps extends React.HTMLAttributes<HTMLDivElement
   variant?: 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
+  animated?: boolean;
 }
 
 const colorStyles: Record<string, string> = {
@@ -28,6 +29,7 @@ export function NeoProgressBar({
   variant = 'yellow',
   size = 'md',
   showLabel = false,
+  animated = false,
   className,
   ...props
 }: NeoProgressBarProps) {
@@ -55,7 +57,11 @@ export function NeoProgressBar({
         )}
       >
         <div
-          className={clsx('h-full transition-all duration-200 border-r-2 border-neo-ink', colorStyles[variant])}
+          className={clsx(
+            'h-full transition-all duration-300 border-r-2 border-neo-ink',
+            colorStyles[variant],
+            animated && 'neo-progress-animated'
+          )}
           style={{ width: `${clampedValue}%` }}
         />
       </div>

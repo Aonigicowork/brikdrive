@@ -115,13 +115,31 @@ export function UploadQueuePanel() {
                   </div>
                 </div>
 
-                {/* Progress bar */}
+                {/* Progress bar & Live Percentage */}
                 {(item.status === 'uploading' || item.status === 'queued') && (
-                  <NeoProgressBar
-                    value={item.progress}
-                    size="sm"
-                    variant={item.status === 'uploading' ? 'green' : 'yellow'}
-                  />
+                  <div className="flex flex-col gap-1 mt-0.5">
+                    <div className="flex items-center justify-between text-[10px] font-black">
+                      <span className="text-neutral-600 flex items-center gap-1.5">
+                        {item.status === 'uploading' ? (
+                          <>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                            <span className="text-neo-ink font-bold">Mengunggah ke Drive...</span>
+                          </>
+                        ) : (
+                          <span className="text-neutral-500 font-bold">Menunggu giliran...</span>
+                        )}
+                      </span>
+                      <span className="text-neo-ink font-black bg-neo-yellow px-1.5 py-0.5 border border-neo-ink shadow-neo-sm">
+                        {item.progress}%
+                      </span>
+                    </div>
+                    <NeoProgressBar
+                      value={item.status === 'queued' ? 5 : Math.max(item.progress, 3)}
+                      size="sm"
+                      variant={item.status === 'uploading' ? 'green' : 'yellow'}
+                      animated={item.status === 'uploading'}
+                    />
+                  </div>
                 )}
 
                 {item.status === 'failed' && (
