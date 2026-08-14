@@ -3,7 +3,7 @@ import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/sessi
 import { createAdminClient } from '@/lib/db/supabase-server';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
-export async function POST(req: NextRequest, { params }: { params: { fileId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { fileId: string } }) {
   const requestId = getRequestId(req);
   const user = await getAuthenticatedUser(req);
 
@@ -17,9 +17,9 @@ export async function POST(req: NextRequest, { params }: { params: { fileId: str
   }
 
   const { fileId } = params;
-  const supabase = createAdminClient();
+  const admin = createAdminClient();
 
-  const { data: file, error } = await supabase
+  const { data: file, error } = await admin
     .from('files')
     .select('*')
     .eq('id', fileId)
@@ -33,21 +33,54 @@ export async function POST(req: NextRequest, { params }: { params: { fileId: str
   }
 
   try {
-    // Generate authorized Google Drive download link
-    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${file.provider_file_id}?alt=media`;
+    const driveMediaUrl = `https://www.googleapis.com/drive/v3/files/${file.provider_file_id}?alt=media`;
+    const driveHeaders: Record<string, string> = {
+      Authorization: `Bearer ${driveCtx.accessToken}`,
+    };
 
-    logger.info('Authorized download requested', { fileId, userId: user.id, requestId });
+    const range = req.headers.get('range');
+    if (range) {
+      driveHeaders['Range'] = range;
+    }
 
-    return NextResponse.json({
-      downloadUrl,
-      fileName: file.original_name,
-      mimeType: file.mime_type,
-      accessToken: driveCtx.accessToken,
-      requestId,
+    const driveRes = await fetch(driveMediaUrl, {
+      headers: driveHeaders,
+    });
+
+    if (!driveRes.ok) {
+      const errText = await driveRes.text();
+      logger.error('Failed to stream download from Google Drive', { status: driveRes.status, errText, requestId });
+      return createErrorResponse('INTERNAL_ERROR', 'Gagal mengunduh file dari Google Drive.', requestId);
+    }
+
+    const responseHeaders = new Headers();
+    responseHeaders.set('Content-Type', file.mime_type || 'application/octet-stream');
+    responseHeaders.set(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(file.original_name)}"; filename*=UTF-8''${encodeURIComponent(file.original_name)}`
+    );
+    responseHeaders.set('Cache-Control', 'private, no-cache');
+    if (driveRes.headers.get('Content-Length')) {
+      responseHeaders.set('Content-Length', driveRes.headers.get('Content-Length')!);
+    }
+    if (driveRes.headers.get('Content-Range')) {
+      responseHeaders.set('Content-Range', driveRes.headers.get('Content-Range')!);
+    }
+
+    logger.info('Authorized direct file download stream started', { fileId, userId: user.id, requestId });
+
+    return new NextResponse(driveRes.body, {
+      status: driveRes.status,
+      headers: responseHeaders,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Gagal menghasilkan tautan unduh';
-    logger.error('Download link error', { message, requestId, userId: user.id });
+    const message = err instanceof Error ? err.message : 'Gagal memproses unduhan';
+    logger.error('Download stream exception', { message, requestId, userId: user.id });
     return createErrorResponse('INTERNAL_ERROR', message, requestId);
   }
+}
+
+export async function POST(req: NextRequest, { params }: { params: { fileId: string } }) {
+  // Backwards compatibility for POST
+  return GET(req, { params });
 }

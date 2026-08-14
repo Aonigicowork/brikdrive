@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/db/supabase-server';
 import { hashShareToken } from '@/lib/crypto/encryption';
+import { getActiveDriveConnection } from '@/lib/auth/session';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
-export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
   const requestId = getRequestId(req);
   const { token } = params;
 
@@ -31,21 +32,45 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     }
 
     const file = share.files;
-    if (file.deleted_at || file.upload_status !== 'completed') {
+    if (file.deleted_at || file.upload_status !== 'completed' || !file.provider_file_id) {
       return createErrorResponse('NOT_FOUND', 'File tidak ditemukan.', requestId);
     }
 
-    const directDownloadUrl = `https://drive.google.com/uc?export=download&id=${file.provider_file_id}`;
+    const driveCtx = await getActiveDriveConnection(share.owner_id);
+    if (!driveCtx) {
+      return createErrorResponse('INTERNAL_ERROR', 'Koneksi Google Drive pemilik tidak tersedia.', requestId);
+    }
 
-    return NextResponse.json({
-      downloadUrl: directDownloadUrl,
-      fileName: file.original_name,
-      mimeType: file.mime_type,
-      requestId,
+    const driveMediaUrl = `https://www.googleapis.com/drive/v3/files/${file.provider_file_id}?alt=media`;
+    const driveRes = await fetch(driveMediaUrl, {
+      headers: {
+        Authorization: `Bearer ${driveCtx.accessToken}`,
+      },
+    });
+
+    if (!driveRes.ok) {
+      return createErrorResponse('INTERNAL_ERROR', 'Gagal mengunduh file dari Google Drive.', requestId);
+    }
+
+    const responseHeaders = new Headers();
+    responseHeaders.set('Content-Type', file.mime_type || 'application/octet-stream');
+    responseHeaders.set(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(file.original_name)}"; filename*=UTF-8''${encodeURIComponent(file.original_name)}`
+    );
+    responseHeaders.set('Cache-Control', 'public, max-age=3600');
+
+    return new NextResponse(driveRes.body, {
+      status: driveRes.status,
+      headers: responseHeaders,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Gagal menghasilkan URL unduh';
-    logger.error('Public download exception', { message, requestId });
+    const message = err instanceof Error ? err.message : 'Gagal menghasilkan unduhan publik';
+    logger.error('Public download stream exception', { message, requestId });
     return createErrorResponse('INTERNAL_ERROR', message, requestId);
   }
+}
+
+export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
+  return GET(req, { params });
 }

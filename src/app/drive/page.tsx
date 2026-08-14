@@ -290,13 +290,23 @@ export default function DriveDashboardPage() {
   // File Actions
   const handleDownload = async (file: BrikFile) => {
     try {
-      const res = await authFetch(`/api/v1/files/${file.id}/download`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        window.open(data.downloadUrl, '_blank');
-      } else {
-        alert('Gagal mengunduh file.');
+      const res = await authFetch(`/api/v1/files/${file.id}/download`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: { message: 'Gagal mengunduh file.' } }));
+        alert(err.error?.message || 'Gagal mengunduh file.');
+        return;
       }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = file.original_name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch {
       alert('Gagal memproses unduhan.');
     }

@@ -53,9 +53,8 @@ export default function PublicSharePage({ params }: { params: { token: string } 
     loadPublicFile();
   }, [token]);
 
-  const handleDownload = async () => {
-    if (!data) return;
-    window.open(data.downloadUrl, '_blank');
+  const handleDownload = () => {
+    window.location.href = `/api/v1/public/shares/${token}/download`;
   };
 
   if (isLoading) {
