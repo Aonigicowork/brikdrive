@@ -5,7 +5,7 @@ import { getRequestId, createErrorResponse, logger } from '@/lib/observability/l
 
 export async function GET(req: NextRequest, { params }: { params: { fileId: string } }) {
   const requestId = getRequestId(req);
-  const user = await getAuthenticatedUser();
+  const user = await getAuthenticatedUser(req);
 
   if (!user) {
     return createErrorResponse('UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.', requestId);
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: { fileId: stri
 
 export async function DELETE(req: NextRequest, { params }: { params: { fileId: string } }) {
   const requestId = getRequestId(req);
-  const user = await getAuthenticatedUser();
+  const user = await getAuthenticatedUser(req);
 
   if (!user) {
     return createErrorResponse('UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.', requestId);

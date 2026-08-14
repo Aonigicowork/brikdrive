@@ -10,7 +10,7 @@ const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB (exact multiple of 256 KiB)
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req);
-  const user = await getAuthenticatedUser();
+  const user = await getAuthenticatedUser(req);
 
   if (!user) {
     return createErrorResponse('UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.', requestId);

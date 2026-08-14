@@ -1,6 +1,7 @@
 'use client';
 
 import { openDB, type IDBPDatabase } from 'idb';
+import { createClient } from '@/lib/db/supabase-client';
 
 const DB_NAME = 'brikdrive_uploads_db';
 const DB_VERSION = 1;
@@ -54,6 +55,21 @@ class UploadManager {
         }
       },
     });
+  }
+
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        return {
+          'Authorization': `Bearer ${session.access_token}`,
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return {};
   }
 
   public subscribe(listener: (items: UploadItem[]) => void) {
@@ -123,9 +139,13 @@ class UploadManager {
 
   private async startUpload(item: UploadItem) {
     // 1. Inisiasi sesi upload di Next.js API
+    const authHeaders = await this.getAuthHeaders();
     const initRes = await fetch('/api/v1/uploads', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
       body: JSON.stringify({
         originalName: item.file.name,
         mimeType: item.file.type,
@@ -207,9 +227,13 @@ class UploadManager {
         const providerFile = response.body;
         const providerFileId = providerFile.id;
 
+        const authHeaders = await this.getAuthHeaders();
         const completeRes = await fetch(`/api/v1/uploads/${item.id}/complete`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders,
+          },
           body: JSON.stringify({ providerFileId }),
         });
 

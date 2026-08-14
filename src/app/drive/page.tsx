@@ -70,12 +70,27 @@ export default function DriveDashboardPage() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper for authenticated requests
+  const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = new Headers(options.headers || {});
+      if (session?.access_token) {
+        headers.set('Authorization', `Bearer ${session.access_token}`);
+      }
+      return fetch(url, { ...options, headers });
+    } catch {
+      return fetch(url, options);
+    }
+  }, []);
+
   // Load Data
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
     try {
       // 1. Fetch Storage Usage & Connection Status
-      const usageRes = await fetch('/api/v1/storage/usage');
+      const usageRes = await authFetch('/api/v1/storage/usage');
       if (usageRes.ok) {
         const usageData: StorageUsageResponse = await usageRes.json();
         setUsage(usageData);
@@ -87,7 +102,7 @@ export default function DriveDashboardPage() {
       const folderUrl = currentFolderId
         ? `/api/v1/folders?parentId=${currentFolderId}`
         : '/api/v1/folders';
-      const foldersRes = await fetch(folderUrl);
+      const foldersRes = await authFetch(folderUrl);
       if (foldersRes.ok) {
         const foldersData = await foldersRes.json();
         setFolders(foldersData.folders || []);
@@ -100,7 +115,7 @@ export default function DriveDashboardPage() {
       if (currentFolderId) params.append('folderId', currentFolderId);
       if (searchQuery.trim()) params.append('q', searchQuery.trim());
 
-      const filesRes = await fetch(`/api/v1/files?${params.toString()}`);
+      const filesRes = await authFetch(`/api/v1/files?${params.toString()}`);
       if (filesRes.ok) {
         const filesData = await filesRes.json();
         setFiles(filesData.files || []);
@@ -110,7 +125,7 @@ export default function DriveDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentFolderId, searchQuery, sortBy]);
+  }, [authFetch, currentFolderId, searchQuery, sortBy]);
 
   useEffect(() => {
     loadDashboardData();
@@ -131,17 +146,21 @@ export default function DriveDashboardPage() {
   // Connect Google Drive Action
   const handleConnectDrive = async () => {
     try {
-      const res = await fetch('/api/v1/drive-connection/start', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.authUrl) {
-          window.location.href = data.authUrl;
-        }
+      const res = await authFetch('/api/v1/drive-connection/start', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.authUrl) {
+        window.location.href = data.authUrl;
       } else {
-        alert('Gagal memulai koneksi Google Drive.');
+        const errorMsg = data?.error?.message || 'Gagal memulai koneksi Google Drive.';
+        if (data?.error?.code === 'UNAUTHENTICATED') {
+          alert('Sesi login telah berakhir. Silakan login kembali.');
+          window.location.href = '/';
+        } else {
+          alert(`Koneksi Gagal: ${errorMsg}`);
+        }
       }
     } catch {
-      alert('Terjadi kesalahan jaringan.');
+      alert('Terjadi kesalahan jaringan saat menghubungkan Google Drive.');
     }
   };
 
@@ -151,9 +170,11 @@ export default function DriveDashboardPage() {
       return;
     }
     try {
-      const res = await fetch('/api/v1/drive-connection', { method: 'DELETE' });
+      const res = await authFetch('/api/v1/drive-connection', { method: 'DELETE' });
       if (res.ok) {
         loadDashboardData();
+      } else {
+        alert('Gagal memutus koneksi Drive.');
       }
     } catch {
       alert('Gagal memutus koneksi.');
@@ -204,7 +225,7 @@ export default function DriveDashboardPage() {
   // File Actions
   const handleDownload = async (file: BrikFile) => {
     try {
-      const res = await fetch(`/api/v1/files/${file.id}/download`, { method: 'POST' });
+      const res = await authFetch(`/api/v1/files/${file.id}/download`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         window.open(data.downloadUrl, '_blank');
@@ -219,7 +240,7 @@ export default function DriveDashboardPage() {
   const handleDelete = async (file: BrikFile) => {
     if (!confirm(`Pindahkan "${file.original_name}" ke tempat sampah?`)) return;
     try {
-      const res = await fetch(`/api/v1/files/${file.id}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/v1/files/${file.id}`, { method: 'DELETE' });
       if (res.ok) {
         loadDashboardData();
       } else {

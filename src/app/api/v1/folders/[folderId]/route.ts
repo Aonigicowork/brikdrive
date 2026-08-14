@@ -7,7 +7,7 @@ import { getRequestId, createErrorResponse, logger } from '@/lib/observability/l
 
 export async function PATCH(req: NextRequest, { params }: { params: { folderId: string } }) {
   const requestId = getRequestId(req);
-  const user = await getAuthenticatedUser();
+  const user = await getAuthenticatedUser(req);
 
   if (!user) {
     return createErrorResponse('UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.', requestId);
@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { folderId: 
 
 export async function DELETE(req: NextRequest, { params }: { params: { folderId: string } }) {
   const requestId = getRequestId(req);
-  const user = await getAuthenticatedUser();
+  const user = await getAuthenticatedUser(req);
 
   if (!user) {
     return createErrorResponse('UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.', requestId);

@@ -14,22 +14,40 @@ export interface AuthenticatedUserContext {
  * Validates the current user session from Supabase cookies.
  * Returns the userId if authenticated, or null if no session.
  */
-export async function getAuthenticatedUser(): Promise<{ id: string; email?: string } | null> {
+export async function getAuthenticatedUser(req?: Request): Promise<{ id: string; email?: string } | null> {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) {
-    // Check mock/dev header or development fallback if needed
-    return null;
+  if (user) {
+    return {
+      id: user.id,
+      email: user.email,
+    };
   }
 
-  return {
-    id: user.id,
-    email: user.email,
-  };
+  // Fallback: Check Authorization header
+  if (req) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '').trim();
+      const admin = createAdminClient();
+      const {
+        data: { user: tokenUser },
+      } = await admin.auth.getUser(token);
+
+      if (tokenUser) {
+        return {
+          id: tokenUser.id,
+          email: tokenUser.email,
+        };
+      }
+    }
+  }
+
+  return null;
 }
 
 /**

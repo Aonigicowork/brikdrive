@@ -30,7 +30,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${appUrl}/drive`,
+          redirectTo: `${appUrl}/auth/callback?next=/drive`,
           scopes: 'email profile',
         },
       });

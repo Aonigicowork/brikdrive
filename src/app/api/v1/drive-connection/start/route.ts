@@ -6,7 +6,7 @@ import { generateRandomToken } from '@/lib/crypto/encryption';
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req);
-  const user = await getAuthenticatedUser();
+  const user = await getAuthenticatedUser(req);
 
   if (!user) {
     return createErrorResponse('UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.', requestId);
