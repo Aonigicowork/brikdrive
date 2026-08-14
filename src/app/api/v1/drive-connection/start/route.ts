@@ -13,15 +13,19 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Generate secure state containing userId and random entropy
+    const origin = req.nextUrl.origin;
+    const redirectUri = process.env.GOOGLE_DRIVE_OAUTH_REDIRECT_URI || `${origin}/api/v1/drive-connection/callback`;
+
+    // Generate secure state containing userId, redirectUri and random entropy
     const rawState = JSON.stringify({
       userId: user.id,
+      redirectUri,
       nonce: generateRandomToken(16),
       timestamp: Date.now(),
     });
     const state = Buffer.from(rawState).toString('base64url');
 
-    const authUrl = googleDriveAdapter.getAuthorizationUrl(state);
+    const authUrl = googleDriveAdapter.getAuthorizationUrl(state, undefined, redirectUri);
 
     return NextResponse.json({
       authUrl,

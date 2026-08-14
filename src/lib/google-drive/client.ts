@@ -36,10 +36,10 @@ export class GoogleDriveAdapter {
   /**
    * Generates Google OAuth authorization URL for offline Google Drive consent
    */
-  getAuthorizationUrl(state: string, codeChallenge?: string): string {
+  getAuthorizationUrl(state: string, codeChallenge?: string, customRedirectUri?: string): string {
     const params = new URLSearchParams({
       client_id: this.clientId,
-      redirect_uri: this.redirectUri,
+      redirect_uri: customRedirectUri || this.redirectUri,
       response_type: 'code',
       scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
       access_type: 'offline',
@@ -58,12 +58,16 @@ export class GoogleDriveAdapter {
   /**
    * Exchanges authorization code for access and refresh tokens
    */
-  async exchangeCodeForTokens(code: string, codeVerifier?: string): Promise<GoogleTokens> {
+  async exchangeCodeForTokens(
+    code: string,
+    codeVerifier?: string,
+    customRedirectUri?: string
+  ): Promise<GoogleTokens> {
     const params = new URLSearchParams({
       code,
       client_id: this.clientId,
       client_secret: this.clientSecret,
-      redirect_uri: this.redirectUri,
+      redirect_uri: customRedirectUri || this.redirectUri,
       grant_type: 'authorization_code',
     });
 

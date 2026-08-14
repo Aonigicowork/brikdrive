@@ -29,7 +29,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Exchange authorization code for tokens
-    const tokens = await googleDriveAdapter.exchangeCodeForTokens(code);
+    const tokens = await googleDriveAdapter.exchangeCodeForTokens(
+      code,
+      undefined,
+      stateObj.redirectUri || `${url.origin}/api/v1/drive-connection/callback`
+    );
     if (!tokens.refresh_token) {
       logger.warn('No refresh token returned; user might need to re-consent', { requestId, userId });
       // In production, prompt=consent ensures refresh_token is returned
