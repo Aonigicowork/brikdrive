@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { createFolderSchema } from '@/lib/validation/schemas';
 import { googleDriveAdapter } from '@/lib/google-drive/client';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const parentId = url.searchParams.get('parentId');
 
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
   let query = supabase
     .from('folders')
     .select('*')
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { name, parentId } = parsed.data;
-    const supabase = createServerSupabaseClient();
+    const supabase = createAdminClient();
 
     // Determine parent provider folder ID
     let parentProviderId = driveCtx.connection.root_folder_id;

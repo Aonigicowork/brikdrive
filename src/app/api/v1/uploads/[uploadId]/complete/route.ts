@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient, createAdminClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { completeUploadSchema } from '@/lib/validation/schemas';
 import { googleDriveAdapter } from '@/lib/google-drive/client';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { uploadId: s
   }
 
   const { uploadId } = params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
   const admin = createAdminClient();
 
   try {

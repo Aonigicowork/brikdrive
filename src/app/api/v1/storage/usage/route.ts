@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/session';
-import { createServerSupabaseClient, createAdminClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 import { StorageUsageResponse } from '@/types/database';
 
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     return createErrorResponse('UNAUTHENTICATED', 'Silakan masuk terlebih dahulu.', requestId);
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
   const admin = createAdminClient();
 
   try {

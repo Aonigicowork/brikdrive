@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { createShareSchema } from '@/lib/validation/schemas';
 import { googleDriveAdapter } from '@/lib/google-drive/client';
 import { generateRandomToken, hashShareToken } from '@/lib/crypto/encryption';
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { fileId: stri
   }
 
   const { fileId } = params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   const { data: shares, error } = await supabase
     .from('file_shares')
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: { fileId: str
   }
 
   const { fileId } = params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   try {
     const json = await req.json().catch(() => ({}));

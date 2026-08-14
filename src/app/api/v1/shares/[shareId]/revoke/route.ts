@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { googleDriveAdapter } from '@/lib/google-drive/client';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: { shareId: st
 
   const driveCtx = await getActiveDriveConnection(user.id);
   const { shareId } = params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   try {
     const { data: share, error: shareErr } = await supabase

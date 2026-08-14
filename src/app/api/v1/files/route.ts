@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { listFilesQuerySchema } from '@/lib/validation/schemas';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { folderId, q, cursor, limit, sort } = parseResult.data;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from('files')

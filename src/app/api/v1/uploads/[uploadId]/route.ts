@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { decryptString } from '@/lib/crypto/encryption';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: { uploadId: st
   }
 
   const { uploadId } = params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   const { data: session, error } = await supabase
     .from('upload_sessions')

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { updateFolderSchema } from '@/lib/validation/schemas';
 import { googleDriveAdapter } from '@/lib/google-drive/client';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { folderId: 
 
     const { folderId } = params;
     const { name, parentId } = parsed.data;
-    const supabase = createServerSupabaseClient();
+    const supabase = createAdminClient();
 
     // Verify folder ownership
     const { data: folder, error: findError } = await supabase
@@ -101,7 +101,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { folderId:
   }
 
   const { folderId } = params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   try {
     const { data: folder, error: findError } = await supabase

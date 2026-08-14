@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient, createAdminClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { initiateUploadSchema, sanitizeFilename } from '@/lib/validation/schemas';
 import { googleDriveAdapter } from '@/lib/google-drive/client';
 import { encryptString } from '@/lib/crypto/encryption';

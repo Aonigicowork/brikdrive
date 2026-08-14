@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/session';
-import { createServerSupabaseClient, createAdminClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
 export async function GET(req: NextRequest, { params }: { params: { fileId: string } }) {
@@ -12,9 +12,9 @@ export async function GET(req: NextRequest, { params }: { params: { fileId: stri
   }
 
   const { fileId } = params;
-  const supabase = createServerSupabaseClient();
+  const admin = createAdminClient();
 
-  const { data: file, error } = await supabase
+  const { data: file, error } = await admin
     .from('files')
     .select('*')
     .eq('id', fileId)
@@ -38,11 +38,11 @@ export async function DELETE(req: NextRequest, { params }: { params: { fileId: s
   }
 
   const { fileId } = params;
-  const supabase = createServerSupabaseClient();
   const admin = createAdminClient();
 
   try {
-    const { data: file, error: findError } = await supabase
+    // Use admin client with explicit owner_id check (RLS bypassed, ownership verified manually)
+    const { data: file, error: findError } = await admin
       .from('files')
       .select('*')
       .eq('id', fileId)
@@ -57,18 +57,24 @@ export async function DELETE(req: NextRequest, { params }: { params: { fileId: s
     const now = new Date().toISOString();
     const purgeAfter = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days retention
 
-    // 1. Soft-delete file in DB
-    await supabase
+    // 1. Soft-delete file in DB (admin client bypasses RLS)
+    const { error: updateError } = await admin
       .from('files')
       .update({
         deleted_at: now,
         upload_status: 'deleted',
         purge_after: purgeAfter,
       })
-      .eq('id', fileId);
+      .eq('id', fileId)
+      .eq('owner_id', user.id);
 
-    // 2. Revoke any active shares immediately
-    await supabase
+    if (updateError) {
+      logger.error('Failed to soft-delete file', { error: updateError.message, fileId, requestId });
+      return createErrorResponse('INTERNAL_ERROR', 'Gagal menghapus file dari database.', requestId);
+    }
+
+    // 2. Revoke any active shares immediately (admin client)
+    await admin
       .from('file_shares')
       .update({ revoked_at: now })
       .eq('file_id', fileId)
@@ -97,3 +103,4 @@ export async function DELETE(req: NextRequest, { params }: { params: { fileId: s
     return createErrorResponse('INTERNAL_ERROR', message, requestId);
   }
 }
+

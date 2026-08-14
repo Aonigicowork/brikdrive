@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, getActiveDriveConnection } from '@/lib/auth/session';
-import { createServerSupabaseClient } from '@/lib/db/supabase-server';
+import { createAdminClient } from '@/lib/db/supabase-server';
 import { getRequestId, createErrorResponse, logger } from '@/lib/observability/logger';
 
 export async function POST(req: NextRequest, { params }: { params: { fileId: string } }) {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { fileId: str
   }
 
   const { fileId } = params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   const { data: file, error } = await supabase
     .from('files')
