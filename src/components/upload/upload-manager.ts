@@ -259,8 +259,22 @@ class UploadManager {
           throw new Error(err.error?.message || 'Verifikasi metadata gagal');
         }
 
+        const completeData = await completeRes.json().catch(() => null);
+
         item.status = 'completed';
         this.notify();
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('brikdrive:upload-completed', {
+              detail: {
+                file: completeData?.file || null,
+                uploadId: item.id,
+                folderId: item.folderId,
+              },
+            })
+          );
+        }
 
         // Clean up from IndexedDB
         if (this.dbPromise) {

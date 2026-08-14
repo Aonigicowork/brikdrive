@@ -131,6 +131,65 @@ export default function DriveDashboardPage() {
     loadDashboardData();
   }, [loadDashboardData]);
 
+  // Realtime Upload Completed Listener
+  useEffect(() => {
+    const handleUploadCompleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ file?: BrikFile | null; folderId?: string | null }>;
+      const newFile = customEvent.detail?.file;
+      const uploadedFolderId = customEvent.detail?.folderId;
+
+      // If uploaded in current folder view, prepend immediately to files state for instant 0ms feedback
+      if (newFile && (uploadedFolderId || null) === (currentFolderId || null)) {
+        setFiles((prev) => {
+          if (prev.some((f) => f.id === newFile.id)) return prev;
+          return [newFile, ...prev];
+        });
+      }
+
+      // Sync complete dashboard statistics
+      loadDashboardData();
+    };
+
+    window.addEventListener('brikdrive:upload-completed', handleUploadCompleted);
+    return () => {
+      window.removeEventListener('brikdrive:upload-completed', handleUploadCompleted);
+    };
+  }, [currentFolderId, loadDashboardData]);
+
+  // Supabase Realtime DB changes subscription for multi-tab and server-side updates
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('realtime:drive-dashboard')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'files',
+        },
+        () => {
+          loadDashboardData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'folders',
+        },
+        () => {
+          loadDashboardData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadDashboardData]);
+
   // Handle Folder Navigation
   const openFolder = (folder: Folder) => {
     setCurrentFolderId(folder.id);
@@ -199,8 +258,6 @@ export default function DriveDashboardPage() {
     if (!selectedFiles || selectedFiles.length === 0) return;
     const fileArray = Array.from(selectedFiles);
     uploadManager.addFiles(fileArray, currentFolderId);
-    // Reload data periodically after uploads
-    setTimeout(loadDashboardData, 1500);
   };
 
   // Drag & Drop Handlers
@@ -237,17 +294,35 @@ export default function DriveDashboardPage() {
     }
   };
 
+  // Instant Optimistic Delete Action
   const handleDelete = async (file: BrikFile) => {
     if (!confirm(`Pindahkan "${file.original_name}" ke tempat sampah?`)) return;
+
+    // 1. Instant 0ms Optimistic UI removal
+    setFiles((prev) => prev.filter((f) => f.id !== file.id));
+    if (usage) {
+      setUsage((prev) =>
+        prev
+          ? {
+              ...prev,
+              used_bytes: Math.max(0, prev.used_bytes - file.byte_size),
+              active_file_count: Math.max(0, prev.active_file_count - 1),
+            }
+          : null
+      );
+    }
+
     try {
       const res = await authFetch(`/api/v1/files/${file.id}`, { method: 'DELETE' });
       if (res.ok) {
         loadDashboardData();
       } else {
         alert('Gagal menghapus file.');
+        loadDashboardData(); // Revert on failure
       }
     } catch {
       alert('Terjadi kesalahan jaringan.');
+      loadDashboardData(); // Revert on failure
     }
   };
 
