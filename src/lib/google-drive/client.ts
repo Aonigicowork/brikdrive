@@ -28,20 +28,31 @@ export class GoogleDriveAdapter {
   private redirectUri: string;
 
   constructor() {
-    this.clientId = process.env.GOOGLE_DRIVE_CLIENT_ID || '';
-    this.clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET || '';
-    this.redirectUri = process.env.GOOGLE_DRIVE_OAUTH_REDIRECT_URI || 'http://localhost:3000/api/v1/drive-connection/callback';
+    this.clientId = (process.env.GOOGLE_DRIVE_CLIENT_ID || '').trim();
+    this.clientSecret = (process.env.GOOGLE_DRIVE_CLIENT_SECRET || '').trim();
+    this.redirectUri = (process.env.GOOGLE_DRIVE_OAUTH_REDIRECT_URI || 'http://localhost:3000/api/v1/drive-connection/callback').trim();
+  }
+
+  public getClientId(): string {
+    return (process.env.GOOGLE_DRIVE_CLIENT_ID || this.clientId || '').trim();
+  }
+
+  public getClientSecret(): string {
+    return (process.env.GOOGLE_DRIVE_CLIENT_SECRET || this.clientSecret || '').trim();
   }
 
   /**
    * Generates Google OAuth authorization URL for offline Google Drive consent
    */
   getAuthorizationUrl(state: string, codeChallenge?: string, customRedirectUri?: string): string {
+    const finalClientId = this.getClientId();
+    const finalRedirectUri = (customRedirectUri || this.redirectUri).trim();
+
     const params = new URLSearchParams({
-      client_id: this.clientId,
-      redirect_uri: customRedirectUri || this.redirectUri,
+      client_id: finalClientId,
+      redirect_uri: finalRedirectUri,
       response_type: 'code',
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email openid',
       access_type: 'offline',
       prompt: 'consent',
       state,
@@ -65,9 +76,9 @@ export class GoogleDriveAdapter {
   ): Promise<GoogleTokens> {
     const params = new URLSearchParams({
       code,
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-      redirect_uri: customRedirectUri || this.redirectUri,
+      client_id: this.getClientId(),
+      client_secret: this.getClientSecret(),
+      redirect_uri: (customRedirectUri || this.redirectUri).trim(),
       grant_type: 'authorization_code',
     });
 
