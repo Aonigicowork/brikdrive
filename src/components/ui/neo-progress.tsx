@@ -19,9 +19,9 @@ const colorStyles: Record<string, string> = {
 };
 
 const heightStyles: Record<string, string> = {
-  sm: 'h-2.5',
-  md: 'h-4',
-  lg: 'h-6',
+  sm: 'h-3.5',
+  md: 'h-5',
+  lg: 'h-7',
 };
 
 export function NeoProgressBar({

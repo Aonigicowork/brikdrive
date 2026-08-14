@@ -60,6 +60,14 @@ export default function DriveDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>('date_desc');
+  const [activeUploads, setActiveUploads] = useState<any[]>([]);
+
+  useEffect(() => {
+    return uploadManager.subscribe((items) => {
+      const active = items.filter((i) => i.status === 'uploading' || i.status === 'queued');
+      setActiveUploads(active);
+    });
+  }, []);
 
   // Modals
   const [selectedFileForPreview, setSelectedFileForPreview] = useState<BrikFile | null>(null);
@@ -337,6 +345,24 @@ export default function DriveDashboardPage() {
       onDrop={handleDrop}
       className="min-h-screen bg-neo-bg text-neo-ink pb-20"
     >
+      {/* Global Running Candybar Progress Indicator when Uploading */}
+      {activeUploads.length > 0 && (
+        <div className="sticky top-0 z-40 w-full bg-neo-yellow border-b-3 border-neo-ink shadow-neo-sm overflow-hidden flex flex-col">
+          <div className="w-full h-3 neo-top-runner" />
+          <div className="px-4 py-1 bg-neo-yellow flex items-center justify-between text-xs font-black text-neo-ink">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-neo-ink animate-ping inline-block" />
+              <span>
+                Sedang mengunggah {activeUploads.length} file ke Google Drive: {activeUploads[0].file?.name}
+              </span>
+            </span>
+            <span className="bg-neo-white px-2 py-0.5 border border-neo-ink shadow-neo-sm">
+              {activeUploads[0].progress}%
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 bg-neo-white border-b-3 border-neo-ink px-4 md:px-8 py-3 shadow-neo-sm flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Brand & Connection Badge */}
