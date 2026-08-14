@@ -14,6 +14,7 @@ import { ShareDialog } from '@/components/drive/share-dialog';
 import { CreateFolderDialog } from '@/components/drive/create-folder-dialog';
 import { UploadQueuePanel } from '@/components/upload/upload-queue-panel';
 import { uploadManager } from '@/components/upload/upload-manager';
+import { createClient } from '@/lib/db/supabase-client';
 import {
   HardDrive,
   FolderPlus,
@@ -24,6 +25,7 @@ import {
   ChevronRight,
   Folder as FolderIcon,
   Link as LinkIcon,
+  Unlink,
   RefreshCw,
   LogOut,
   AlertCircle,
@@ -158,6 +160,19 @@ export default function DriveDashboardPage() {
     }
   };
 
+  // Sign out from Supabase Auth
+  const handleLogout = async () => {
+    if (!confirm('Apakah Anda yakin ingin keluar dari akun BrikDrive?')) return;
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Signout error', err);
+    } finally {
+      window.location.href = '/';
+    }
+  };
+
   // Handle File Uploads
   const handleFilesSelected = (selectedFiles: FileList | null) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
@@ -270,21 +285,27 @@ export default function DriveDashboardPage() {
         </div>
 
         {/* Right Header Actions */}
-        <div className="flex items-center gap-2 self-end md:self-auto">
-          <NeoButton size="sm" variant="secondary" onClick={() => loadDashboardData()} title="Muat Ulang">
+        <div className="flex items-center gap-2 self-end md:self-auto flex-wrap">
+          <NeoButton size="sm" variant="secondary" onClick={() => loadDashboardData()} title="Muat Ulang Data">
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </NeoButton>
 
           {isDriveConnected ? (
-            <NeoButton size="sm" variant="danger" onClick={handleDisconnectDrive} title="Putus Koneksi Drive">
-              <LogOut className="w-3.5 h-3.5" />
+            <NeoButton size="sm" variant="danger" onClick={handleDisconnectDrive} title="Putus Koneksi Google Drive">
+              <Unlink className="w-3.5 h-3.5 mr-1" />
+              <span className="hidden sm:inline">Putus Drive</span>
             </NeoButton>
           ) : (
-            <NeoButton size="sm" variant="primary" onClick={handleConnectDrive}>
+            <NeoButton size="sm" variant="primary" onClick={handleConnectDrive} title="Hubungkan Google Drive">
               <LinkIcon className="w-3.5 h-3.5 mr-1" />
-              Hubungkan Drive
+              <span>Hubungkan Drive</span>
             </NeoButton>
           )}
+
+          <NeoButton size="sm" variant="dark" onClick={handleLogout} title="Keluar dari Akun BrikDrive">
+            <LogOut className="w-3.5 h-3.5 mr-1" />
+            <span>Keluar</span>
+          </NeoButton>
         </div>
       </header>
 
